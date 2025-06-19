@@ -13,7 +13,7 @@ class UserCreateModel(BaseModel):
 
 class UserLoginModel(BaseModel):
     email: str = Field(max_length=40)
-    password: str = Field(max_length=20)
+    password: str = Field(min_length=6)
 
 class UserModel(BaseModel):
     user_id: uuid.UUID
@@ -25,3 +25,6 @@ class UserModel(BaseModel):
 class UserBooksModel(UserModel):
     books: List[Book]
     reviews: List[ReviewModel]
+
+class EmailModel(BaseModel):
+    addresses : List[str]

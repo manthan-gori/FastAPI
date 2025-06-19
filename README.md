@@ -20,7 +20,7 @@
 
 3. **Start the server:**
    ```sh
-   uvicorn src:app --reload
+   uvicorn src:app --reload  
    ```
 
 4. **Visit** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) for the interactive API docs

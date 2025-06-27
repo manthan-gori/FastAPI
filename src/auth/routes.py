@@ -6,10 +6,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from src.db.main import get_session
 from .schemas import UserCreateModel, UserModel, UserLoginModel, UserBooksModel, EmailModel
 from .service import UserService
-from .utils import create_access_token, verify_password
+from .utils import create_access_token, verify_password, create_url_safe_token, decode_url_safe_token
 from .dependencies import RefreshTokenBearer , get_current_user, RoleChecker
-from src.errors import UserAlreadyExists, InvalidCredentials, RevokedToken
+from src.errors import UserAlreadyExists, InvalidCredentials, RevokedToken, UserNotFound
 from src.mail import mail, create_message
+from src.config import Config
+from src.db.main import get_session
 
 
 auth_router = APIRouter()
@@ -31,14 +33,45 @@ async def send_mail(emails:EmailModel):
     await mail.send_message(message)
     return {"message":"Email Sent Successfully"}
 
-@auth_router.post("/signup", response_model=UserModel, status_code=status.HTTP_201_CREATED)
+@auth_router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def create_user_account(user_data: UserCreateModel, session: AsyncSession = Depends(get_session)):
     email = user_data.email
     user_exists = await user_service.user_exixts(email, session)
     if user_exists:
         raise UserAlreadyExists()
     new_user = await user_service.create_user(user_data, session)
-    return new_user
+    token = create_url_safe_token({"email":email})
+    link = f"http://{Config.DOMAIN}/api/v1/auth/verify/{token}"
+    html_message = f"""
+    <h1>Verify your email</h1>
+    <p>Please click this <a href="{link}">link</a> to verify email.</p>
+    """
+    message = create_message(
+        recipients=[email],
+        subject="Verify your email",
+        body=html_message
+    )
+    await mail.send_message(message)
+    return {
+        "message":"Your Account has been created! Please check email to verify your account",
+        "user":new_user
+    }
+
+@auth_router.get("/verify/{token}")
+async def verify_user_account(token:str, session: AsyncSession = Depends(get_session)):
+    token_data = decode_url_safe_token(token)
+    user_email = token_data.get("email")
+    if user_email:
+        user = await user_service.get_user_by_email(user_email, session)
+        if not user:
+            raise UserNotFound()
+        await user_service.update_user(user, {"is_verified":True}, session)
+        return JSONResponse(content={
+            "message":"Account Verified Successfully."
+        }, status_code=status.HTTP_200_OK)
+    return JSONResponse(content={
+        "message":"Error occured during verification"
+    }, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @auth_router.post("/login")
 async def login_users(login_data: UserLoginModel, session: AsyncSession = Depends(get_session)):

@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Form
 from fastapi.exceptions import HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from datetime import timedelta , datetime
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.db.main import get_session
-from .schemas import UserCreateModel, UserModel, UserLoginModel, UserBooksModel, EmailModel
+from .schemas import UserCreateModel, UserModel, UserLoginModel, UserBooksModel, EmailModel, PasswordResetRequestModel, PasswordResetConfirmModel
 from .service import UserService
-from .utils import create_access_token, verify_password, create_url_safe_token, decode_url_safe_token
+from .utils import create_access_token, verify_password, create_url_safe_token, decode_url_safe_token, generate_passwd_hash
 from .dependencies import RefreshTokenBearer , get_current_user, RoleChecker
 from src.errors import UserAlreadyExists, InvalidCredentials, RevokedToken, UserNotFound
 from src.mail import mail, create_message
@@ -125,3 +125,93 @@ async def get_current_user(user = Depends(get_current_user), _:bool=Depends(role
 #     return JSONResponse(
 #         content={"message":"Logged out Successfully"}, status_code=status.HTTP_200_OK
 #     )  ............. redis part
+
+@auth_router.post("/password-reset-request")
+async def pass_reset_request(email_data: PasswordResetRequestModel):
+    email = email_data.email
+    token = create_url_safe_token({"email":email})
+    link = f"http://{Config.DOMAIN}/api/v1/auth/password-reset-confirm/{token}"
+    html_message = f"""
+    <h1>Reset your Password</h1>
+    <p>Please click this <a href="{link}">link</a> to reset your Password.</p>
+    """
+    message = create_message(
+        recipients=[email],
+        subject="Reset your Password",
+        body=html_message
+    )
+    await mail.send_message(message)
+    return JSONResponse(
+        content={
+            "message":"Please check your email to reset password."
+        },status_code=status.HTTP_200_OK
+    )
+
+# @auth_router.get("/password-reset-confirm/{token}")
+# async def show_password_reset_form(token: str):
+#     # You can return a simple message or HTML form here
+#     return JSONResponse(
+#         content={"message": "Please submit your new password via POST to this URL."},
+#         status_code=status.HTTP_200_OK
+#     )
+
+@auth_router.get("/password-reset-confirm/{token}", response_class=HTMLResponse)
+async def show_password_reset_form(token: str):
+    return f"""
+    <html>
+        <head>
+            <title>Reset Password</title>
+        </head>
+        <body>
+            <h2>Reset your password</h2>
+            <form action="/api/v1/auth/password-reset-confirm/{token}" method="post">
+                <label>New Password:</label><br>
+                <input type="password" name="new_password" required><br>
+                <label>Confirm New Password:</label><br>
+                <input type="password" name="confirm_new_password" required><br><br>
+                <input type="submit" value="Reset Password">
+            </form>
+        </body>
+    </html>
+    """
+
+# @auth_router.post("/password-reset-confirm/{token}")
+# async def reset_account_password(token:str, passwords: PasswordResetConfirmModel, session: AsyncSession = Depends(get_session)):
+#     new_password = passwords.new_password
+#     confirm_password = passwords.confirm_new_password
+#     if new_password != confirm_password:
+#         raise HTTPException(detail="Password does not match", status_code=status.HTTP_400_BAD_REQUEST)
+#     token_data = decode_url_safe_token(token)
+#     user_email = token_data.get("email")
+#     if user_email:
+#         user = await user_service.get_user_by_email(user_email, session)
+#         if not user:
+#             raise UserNotFound()
+#         passwd_hash = generate_passwd_hash(new_password)
+#         await user_service.update_user(user, {"password_hash": passwd_hash}, session)
+#         return JSONResponse(content={
+#             "message":"Password Reset Successfully."
+#         }, status_code=status.HTTP_200_OK)
+#     return JSONResponse(content={
+#         "message":"Error occured during password reset."
+#     }, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@auth_router.post("/password-reset-confirm/{token}")
+async def reset_account_password(
+    token: str,
+    new_password: str = Form(...),
+    confirm_new_password: str = Form(...),
+    session: AsyncSession = Depends(get_session)
+):
+    if new_password != confirm_new_password:
+        return HTMLResponse(content="<h3>Password does not match.</h3>", status_code=400)
+    token_data = decode_url_safe_token(token)
+    user_email = token_data.get("email") if token_data else None
+    if user_email:
+        user = await user_service.get_user_by_email(user_email, session)
+        if not user:
+            return HTMLResponse(content="<h3>User not found.</h3>", status_code=404)
+        passwd_hash = generate_passwd_hash(new_password)
+        await user_service.update_user(user, {"password_hash": passwd_hash}, session)
+        return HTMLResponse(content="<h3>Password Reset Successfully.</h3>", status_code=200)
+    return HTMLResponse(content="<h3>Error occurred during password reset.</h3>", status_code=500)

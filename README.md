@@ -22,13 +22,6 @@ The codebase is organized for clarity and maintainability, with separate modules
 
 ## Project Structure
 
-```
-migrations/         # Alembic migrations
-requirements.txt    # Python dependencies
-.env.example        # Example environment variables
-README.md           # Project documentation
-```
-
 - **src/auth/**: Auth endpoints, services, schemas, and helpers
 - **src/books/**: Book endpoints, services, schemas, and sample data
 - **src/reviews/**: Review endpoints, services, schemas
@@ -39,6 +32,11 @@ README.md           # Project documentation
 - **src/errors.py**: Custom exceptions and error handlers
 - **src/middleware.py**: Middleware registration
 - **src/__init__.py**: FastAPI app, router, and exception handler setup
+
+migrations/         # Alembic migrations
+requirements.txt    # Python dependencies
+.env.example        # Example environment variables
+README.md           # Project documentation
 
 
 ## Setup (Recommended: Use a Virtual Environment)

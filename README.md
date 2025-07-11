@@ -33,11 +33,12 @@ The codebase is organized for clarity and maintainability, with separate modules
 - **src/middleware.py**: Middleware registration
 - **src/__init__.py**: FastAPI app, router, and exception handler setup
 
+```
 migrations/         # Alembic migrations
 requirements.txt    # Python dependencies
 .env.example        # Example environment variables
 README.md           # Project documentation
-
+```
 
 ## Setup (Recommended: Use a Virtual Environment)
 

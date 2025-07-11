@@ -1,5 +1,6 @@
 # FastAPI
 
+
 ## Setup (Recommended: Use a Virtual Environment)
 
 1. **Create and activate a virtual environment** (Windows):

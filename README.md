@@ -11,14 +11,12 @@ Key features include:
 - **Book CRUD operations** (create, read, update, delete)
 - **Review system** for books
 - **Role-based access control** for endpoints
-- **Async SQLModel/PostgreSQL** database integration
+- **Async PostgreSQL** database integration
 - **Alembic** for database migrations
 - **Pre-configured middleware** for logging and CORS
 - **Ready for deployment** and extensible for frontend integration
 
 The codebase is organized for clarity and maintainability, with separate modules for authentication, books, reviews, and shared utilities.
-
----
 
 ## Project Structure
 
